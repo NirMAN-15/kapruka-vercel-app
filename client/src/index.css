@@ -1,0 +1,293 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+}
+
+/* Custom Micro-animations and scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(86, 58, 142, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(248, 218, 8, 0.7);
+}
+
+/* Pulse animation for active search states */
+@keyframes pulse-yellow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(248, 218, 8, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(248, 218, 8, 0);
+  }
+}
+
+.animate-pulse-yellow {
+  animation: pulse-yellow 2s infinite;
+}
+
+/* Premium entry and hover animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.product-card-hover {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.product-card-hover:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 20px -8px rgba(64, 41, 112, 0.4), 0 0 0 1px rgba(248, 218, 8, 0.3);
+}
+
+/* Premium Radial Glowing background */
+.premium-glow-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(64, 41, 112, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(248, 218, 8, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle glowing border highlight */
+.premium-glow-border {
+  box-shadow: 0 0 15px rgba(64, 41, 112, 0.25), inset 0 0 10px rgba(248, 218, 8, 0.05);
+  border: 1px solid rgba(86, 58, 142, 0.4);
+}
+
+/* Browser Compatibility Overrides */
+html,
+:host {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.backdrop-blur {
+  -webkit-backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+/* ===== LIGHT MODE — Full Kapruka Style via data-theme ===== */
+
+/* Define dark defaults as CSS vars on :root */
+:root {
+  --bg-app: #020617;      /* slate-950 */
+  --bg-panel: #0f172a;    /* slate-900 */
+  --bg-card: #0f172a;
+  --bg-input: #1e293b;
+  --bg-bubble-ai: #0f172a;
+  --bg-bubble-user: rgba(109,40,217,0.3);
+  --bg-sidebar-section: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #1e293b;
+  --header-bg: #0f172a;
+  --header-text: #f1f5f9;
+  --chip-bg: rgba(109,40,217,0.2);
+  --chip-text: #e2d9f3;
+  --chip-border: rgba(109,40,217,0.4);
+  --scrollbar-track: rgba(30,41,59,0.5);
+  --scrollbar-thumb: rgba(86,58,142,0.5);
+}
+
+/* Light mode overrides */
+.light-mode {
+  --bg-app: #f4f4f8;
+  --bg-panel: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-bubble-ai: #ffffff;
+  --bg-bubble-user: #ede9f8;
+  --bg-sidebar-section: #f9f9fc;
+  --text-primary: #1a1a2e;
+  --text-secondary: #444466;
+  --text-muted: #888899;
+  --border-color: #e0e0ec;
+  --header-bg: #402970;
+  --header-text: #ffffff;
+  --chip-bg: #ede9f8;
+  --chip-text: #402970;
+  --chip-border: #c4b5e8;
+  --scrollbar-track: #f1f3f5;
+  --scrollbar-thumb: #c4b5e8;
+}
+
+/* Apply CSS vars to elements */
+.light-mode {
+  background-color: var(--bg-app) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ALL dark bg elements → light in .light-mode */
+.light-mode [class*="bg-slate-950"],
+.light-mode [class*="bg-slate-900"],
+.light-mode [class*="bg-slate-800"] {
+  background-color: var(--bg-panel) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Semi-transparent panels */
+.light-mode [style*="background"],
+.light-mode [class*="bg-slate-950\/"],
+.light-mode [class*="bg-slate-900\/"],
+.light-mode [class*="bg-slate-800\/"] {
+  background-color: rgba(255,255,255,0.97) !important;
+}
+
+/* Borders */
+.light-mode [class*="border-slate"] {
+  border-color: var(--border-color) !important;
+}
+
+/* Text */
+.light-mode [class*="text-white"],
+.light-mode [class*="text-slate-100"],
+.light-mode [class*="text-slate-200"],
+.light-mode [class*="text-slate-300"] {
+  color: var(--text-primary) !important;
+}
+.light-mode [class*="text-slate-400"],
+.light-mode [class*="text-slate-500"],
+.light-mode [class*="text-slate-600"] {
+  color: var(--text-secondary) !important;
+}
+
+/* Header bar — always Kapruka purple */
+.light-mode .kapruka-header {
+  background-color: #402970 !important;
+}
+.light-mode .kapruka-header * {
+  color: #ffffff !important;
+}
+.light-mode .kapruka-header button {
+  border-color: rgba(255,255,255,0.35) !important;
+}
+
+/* Sidebar */
+.light-mode .kapruka-sidebar {
+  background-color: #ffffff !important;
+  border-right-color: #e0e0ec !important;
+}
+
+/* Sidebar sections */
+.light-mode .sidebar-section {
+  background-color: #f4f4fa !important;
+  border-color: #e0e0ec !important;
+}
+.light-mode .sidebar-section * {
+  color: var(--text-primary) !important;
+}
+
+/* Cart panel */
+.light-mode .kapruka-cart {
+  background-color: #ffffff !important;
+  border-left-color: #e0e0ec !important;
+}
+
+/* Chat bubbles — AI */
+.light-mode .chat-bubble-ai {
+  background-color: #ffffff !important;
+  border: 1px solid #e8e8f0 !important;
+  color: #1a1a2e !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+
+/* Chat bubbles — User */
+.light-mode .chat-bubble-user {
+  background-color: #ede9f8 !important;
+  color: #2d1a5e !important;
+}
+
+/* Product cards */
+.light-mode .product-card-hover {
+  background-color: #ffffff !important;
+  border-color: #e0e0ec !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+.light-mode .product-card-hover:hover {
+  border-color: #402970 !important;
+  box-shadow: 0 8px 24px rgba(64,41,112,0.15) !important;
+}
+.light-mode .product-card-hover h4 {
+  color: #1a1a2e !important;
+}
+
+/* Chips / pills */
+.light-mode .category-chip {
+  background-color: #ede9f8 !important;
+  color: #402970 !important;
+  border-color: #c4b5e8 !important;
+}
+
+/* Inputs */
+.light-mode input,
+.light-mode select,
+.light-mode textarea {
+  background-color: #ffffff !important;
+  color: #1a1a2e !important;
+  border-color: #d1d5db !important;
+}
+.light-mode input::placeholder,
+.light-mode textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Keep purple/yellow accent colours unchanged */
+.light-mode [class*="text-kapruka-yellow"] { color: #d4a017 !important; }
+.light-mode [class*="text-kapruka-purple"] { color: #402970 !important; }
+.light-mode [class*="bg-kapruka-purple"],
+.light-mode [class*="bg-purple-"] { background-color: #402970 !important; color: #ffffff !important; }
+.light-mode [class*="bg-emerald"] { background-color: #059669 !important; color: #ffffff !important; }
+.light-mode [class*="bg-rose"] { background-color: #e11d48 !important; color: #ffffff !important; }
+
+/* Scrollbars */
+.light-mode ::-webkit-scrollbar-track { background: #f1f3f5 !important; }
+.light-mode ::-webkit-scrollbar-thumb { background: #c4b5e8 !important; }
+

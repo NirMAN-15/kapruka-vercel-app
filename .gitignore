@@ -12,5 +12,5 @@ yarn-error.log*
 
 # Non-project documentation and assets (kept locally, not in git)
 _docs/
-*.html
 *_files/
+

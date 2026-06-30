@@ -1,22 +1,22 @@
-# 🛍️ Kapruka AI Shopping Assistant
+# Kapruka AI Shopping Assistant
 
 A premium, bilingual AI-powered shopping and gift-delivery assistant for **[Kapruka.com](https://www.kapruka.com)** — Sri Lanka's largest e-commerce platform. Built with a modern React frontend and an Express.js serverless backend bridge proxying directly to a remote Kapruka Model Context Protocol (MCP) server.
 
 ---
 
-## ✨ Features
+##  Features
 
-*   🤖 **Casually Intelligent Chat:** Converses like a friendly human in English, Sinhala (සිංහල), or Tanglish (Sinhala written in English letters).
-*   💬 **Smart Clarification:** If your query is vague (e.g. *"I want to buy a gift for under LKR 5000"*), the AI won't guess—it will ask a friendly clarification question to guide you (e.g. *"Sure! Are you looking for cakes, flowers, chocolates, toys, or watches?"*).
-*   🎨 **Premium Aesthetic & Accessibility:** Sleek dark-mode default with a beautiful light-mode toggle featuring fully-tested high-contrast colors (no unreadable text!).
-*   📱 **Fully Mobile Responsive:** Features a sliding hamburger sidebar menu drawer and overlay backdrops for comfortable mobile phone shopping.
-*   🛒 **Interactive Checkout Wizard:** Add items to your cart, select delivery dates via a calendar with dynamic validation (tomorrow or later), pick canonical Sri Lankan cities from a dropdown to prevent spelling errors, and calculate real shipping rates dynamically.
-*   📦 **Live Order Tracker:** Track your order in real-time with an interactive status timeline showing progress from *Received* to *Delivered*.
-*   🚀 **Vercel Serverless Ready:** Structured as a monorepo optimized for instant deployment using Vercel Serverless Functions.
+*    **Casually Intelligent Chat:** Converses like a friendly human in English, Sinhala (සිංහල), or Tanglish (Sinhala written in English letters).
+*    **Smart Clarification:** If your query is vague (e.g. *"I want to buy a gift for under LKR 5000"*), the AI won't guess—it will ask a friendly clarification question to guide you (e.g. *"Sure! Are you looking for cakes, flowers, chocolates, toys, or watches?"*).
+*    **Premium Aesthetic & Accessibility:** Sleek dark-mode default with a beautiful light-mode toggle featuring fully-tested high-contrast colors (no unreadable text!).
+*    **Fully Mobile Responsive:** Features a sliding hamburger sidebar menu drawer and overlay backdrops for comfortable mobile phone shopping.
+*    **Interactive Checkout Wizard:** Add items to your cart, select delivery dates via a calendar with dynamic validation (tomorrow or later), pick canonical Sri Lankan cities from a dropdown to prevent spelling errors, and calculate real shipping rates dynamically.
+*    **Live Order Tracker:** Track your order in real-time with an interactive status timeline showing progress from *Received* to *Delivered*.
+*    **Vercel Serverless Ready:** Structured as a monorepo optimized for instant deployment using Vercel Serverless Functions.
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```text
 kapruka-monorepo/
@@ -35,7 +35,7 @@ kapruka-monorepo/
 
 ---
 
-## 🛠️ Local Development Setup
+##  Local Development Setup
 
 ### 1. Prerequisites
 Ensure you have **Node.js 18+** installed.
@@ -79,7 +79,7 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser!
 
 ---
 
-## 🚀 Pushing & Deploying to Vercel (Hobby Tier - Free)
+##  Pushing & Deploying to Vercel (Hobby Tier - Free)
 
 This monorepo is fully optimized for Vercel.
 

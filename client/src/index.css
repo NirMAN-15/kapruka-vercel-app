@@ -168,6 +168,7 @@ html,
 /* ALL dark bg elements → light in .light-mode */
 .light-mode [class*="bg-slate-950"],
 .light-mode [class*="bg-slate-900"],
+.light-mode [class*="bg-slate-850"],
 .light-mode [class*="bg-slate-800"] {
   background-color: var(--bg-panel) !important;
   color: var(--text-primary) !important;
@@ -177,6 +178,7 @@ html,
 .light-mode [style*="background"],
 .light-mode [class*="bg-slate-950\/"],
 .light-mode [class*="bg-slate-900\/"],
+.light-mode [class*="bg-slate-850\/"],
 .light-mode [class*="bg-slate-800\/"] {
   background-color: rgba(255,255,255,0.97) !important;
 }
@@ -279,9 +281,20 @@ html,
   color: #9ca3af !important;
 }
 
-/* Keep purple/yellow accent colours unchanged */
-.light-mode [class*="text-kapruka-yellow"] { color: #d4a017 !important; }
+/* Keep purple/yellow accent colors readable based on background contrast */
+.light-mode [class*="text-kapruka-yellow"] { color: #402970 !important; }
 .light-mode [class*="text-kapruka-purple"] { color: #402970 !important; }
+
+/* Keep yellow text bright on elements that remain dark in light mode */
+.light-mode [class*="bg-kapruka-purple"] [class*="text-kapruka-yellow"],
+.light-mode [class*="bg-purple-"] [class*="text-kapruka-yellow"],
+.light-mode [class*="bg-slate-950"] [class*="text-kapruka-yellow"],
+.light-mode [class*="bg-slate-900"] [class*="text-kapruka-yellow"],
+.light-mode .kapruka-header [class*="text-kapruka-yellow"],
+.light-mode .kapruka-sidebar [class*="text-kapruka-yellow"] {
+  color: #facc15 !important;
+}
+
 .light-mode [class*="bg-kapruka-purple"],
 .light-mode [class*="bg-purple-"] { background-color: #402970 !important; color: #ffffff !important; }
 .light-mode [class*="bg-emerald"] { background-color: #059669 !important; color: #ffffff !important; }

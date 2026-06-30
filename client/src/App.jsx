@@ -16,7 +16,8 @@ import {
   Sparkles,
   ChevronRight,
   TrendingUp,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 
 // ====== Theme Context ======
@@ -871,6 +872,7 @@ export default function App() {
   const [trackOrderNum, setTrackOrderNum] = useState('');
   const [orderTrackingDetails, setOrderTrackingDetails] = useState(null);
   const [isTrackLoading, setIsTrackLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Popular search tags/chips
   const searchChips = translations[language].suggestionsChips;
@@ -1410,7 +1412,16 @@ export default function App() {
     <div className={`flex h-screen w-screen overflow-hidden bg-slate-950 font-sans${isDarkMode ? '' : ' light-mode'}`}>
       
       {/* 1. SIDEBAR: Quick Discovery & Health checks */}
-      <div className="kapruka-sidebar hidden md:flex flex-col w-80 bg-slate-900 border-r border-slate-800 text-slate-200">
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 md:hidden animate-fade-in"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <div className={`kapruka-sidebar flex flex-col w-80 bg-slate-900 border-r border-slate-800 text-slate-200 transition-all duration-300 z-50
+        ${isSidebarOpen ? 'translate-x-0 fixed inset-y-0 left-0' : '-translate-x-full fixed inset-y-0 left-0 md:translate-x-0 md:relative md:flex'}
+      `}>
         
         {/* Brand Logo Header */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
@@ -1425,6 +1436,47 @@ export default function App() {
               <p className="text-[10px] text-slate-400">{language === 'si' ? 'සාප්පු සවාරි සහ තෑගි සහායකයා' : 'Shopping & Gift Assistant'}</p>
             </div>
           </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden text-slate-400 hover:text-white p-1"
+            title="Close Menu"
+            aria-label="Close Sidebar Menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Mobile Settings Toggle (Language + Theme) */}
+        <div className="md:hidden px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/20">
+          <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800/80 gap-0.5">
+            <button
+              onClick={() => setLanguage('en')}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold font-outfit transition-all duration-150 ${
+                language === 'en'
+                  ? 'bg-kapruka-purple text-kapruka-yellow shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setLanguage('si')}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all duration-150 ${
+                language === 'si'
+                  ? 'bg-kapruka-purple text-kapruka-yellow shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              සිංහල
+            </button>
+          </div>
+          <button
+            onClick={() => setIsDarkMode(prev => !prev)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 transition-all text-base"
+            title="Toggle theme"
+          >
+            {isDarkMode ? '☀️' : '🌙'}
+          </button>
         </div>
 
         {/* Feature 2: New Chat Button */}
@@ -1635,7 +1687,7 @@ export default function App() {
         <div className="premium-glow-bg" />
 
         {/* Main UI Header with Bilingual Selector Toggle */}
-        <div className="kapruka-header bg-slate-900/90 backdrop-blur border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0 z-10">
+        <div className="kapruka-header hidden md:flex bg-slate-900/90 backdrop-blur border-b border-slate-800 px-6 py-4 items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-kapruka-yellow animate-pulse" />
             <span className="text-sm font-bold font-outfit text-white tracking-wide">
@@ -1691,8 +1743,16 @@ export default function App() {
         {/* Mobile / Tiny Screen Header */}
         <div className="md:hidden p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-kapruka-yellow" />
-            <h1 className="text-lg font-bold font-outfit text-white">KAPRUKA AI</h1>
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1.5 bg-slate-850 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white mr-1 transition"
+              title="Open Menu"
+              aria-label="Open Sidebar Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <ShoppingBag className="w-4 h-4 text-kapruka-yellow" />
+            <h1 className="text-md font-bold font-outfit text-white">KAPRUKA AI</h1>
           </div>
           <button 
             onClick={() => setIsCartOpen(!isCartOpen)} 

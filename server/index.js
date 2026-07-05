@@ -50,6 +50,20 @@ function formatToYYYYMMDD(dateStr) {
   return dateStr;
 }
 
+// Clean Colombo city format (e.g. "Colombo 03 (Colpetty)" -> "Colombo 03")
+function cleanCityName(cityStr) {
+  if (!cityStr || typeof cityStr !== 'string') return '';
+  let cleaned = cityStr.replace(/\s*\([^)]*\)/g, '').trim();
+  const match = cleaned.match(/^colombo\s+(\d+)$/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num <= 15) {
+      cleaned = `Colombo ${String(num).padStart(2, '0')}`;
+    }
+  }
+  return cleaned;
+}
+
 // Normalize order creation payload to match exact MCP schema
 function normalizeOrderPayload(payload) {
   if (!payload || typeof payload !== 'object') return payload;
@@ -69,6 +83,9 @@ function normalizeOrderPayload(payload) {
     const d = result.delivery;
     if (!d.address && d.street_address) {
       d.address = d.street_address;
+    }
+    if (d.city) {
+      d.city = cleanCityName(d.city);
     }
     if (!d.date && d.delivery_date) {
       d.date = d.delivery_date;
@@ -221,15 +238,16 @@ function parseProductsFromMarkdown(mdText) {
 
   const extractPrice = (text) => {
     // Match LKR 6,990 or Rs. 4,200 or RS 990 etc.
-    const m = text.match(/(?:lkr|rs\.?)\s*([\d,]+)/i);
+    const m = text.match(/\b(?:lkr|rs\.?)\b\s*([\d,]+)/i);
     return m ? `LKR ${m[1]}` : null;
   };
 
   const isNonProductTitle = (t) => {
     if (!t || t.length < 4) return true;
     if (t.endsWith(':')) return true;
-    if (/^(id|url|link|image|price|note|info)$/i.test(t)) return true;
-    if (/^(shipping|estimated|tracking|shipment|local delivery|insurance|vendor|weight|dimension|colour|color|size|material|brand|sku|barcode|specification|detail|benefit|warning|caution)/i.test(t)) return true;
+    const lower = t.toLowerCase();
+    if (/^(id|url|link|image|price|note|info|stock|category|vendor|availability|status|search)$/i.test(t)) return true;
+    if (/(shipping|estimated|tracking|shipment|local delivery|insurance|vendor|weight|dimension|colour|color|size|material|brand|sku|barcode|specification|detail|benefit|warning|caution|search results|kapruka search|direct search|කප්රුක සෙවුම|සෙවුම|here are|oyage|ඔබගේ)/i.test(lower)) return true;
     return false;
   };
 
@@ -239,7 +257,10 @@ function parseProductsFromMarkdown(mdText) {
       const idFromUrl = currentProduct.url.match(/\/kid\/([^/]+)/i) || currentProduct.url.match(/\/([^/]+)$/);
       if (idFromUrl) currentProduct.product_id = idFromUrl[1].toUpperCase();
     }
-    products.push(currentProduct);
+    // Only save if it has at least one identifying/descriptive property (price, product_id, image, or url)
+    if (currentProduct.price || currentProduct.product_id || currentProduct.image || currentProduct.url) {
+      products.push(currentProduct);
+    }
     currentProduct = null;
   };
 
@@ -255,8 +276,8 @@ function parseProductsFromMarkdown(mdText) {
       const priceVal = numberedMatch[2];
       if (!isNonProductTitle(title)) {
         currentProduct = { title, price: `LKR ${priceVal}`, in_stock: true, image: '', product_id: '', url: '' };
+        continue;
       }
-      continue;
     }
 
     // FORMAT 2: "**Title**" possibly with price inline
@@ -267,8 +288,8 @@ function parseProductsFromMarkdown(mdText) {
         saveCurrentProduct();
         const inlinePrice = extractPrice(line);
         currentProduct = { title: candidateTitle, price: inlinePrice, in_stock: true, image: '', product_id: '', url: '' };
+        continue;
       }
-      continue;
     }
 
     // FORMAT 3: "- Title - LKR X" or "- Title: LKR X"
@@ -278,8 +299,19 @@ function parseProductsFromMarkdown(mdText) {
       if (!isNonProductTitle(candidateTitle)) {
         saveCurrentProduct();
         currentProduct = { title: candidateTitle, price: `LKR ${dashTitlePrice[2]}`, in_stock: true, image: '', product_id: '', url: '' };
+        continue;
       }
-      continue;
+    }
+
+    // FORMAT 4: "## Title" or "### Title" (Markdown Headings)
+    const headingMatch = line.match(/^#{1,4}\s+(.+)$/);
+    if (headingMatch) {
+      const candidateTitle = headingMatch[1].trim().replace(/\*\*/g, '');
+      if (!isNonProductTitle(candidateTitle)) {
+        saveCurrentProduct();
+        currentProduct = { title: candidateTitle, price: null, in_stock: true, image: '', product_id: '', url: '' };
+        continue;
+      }
     }
 
     // Fields under current product
@@ -299,7 +331,7 @@ function parseProductsFromMarkdown(mdText) {
       const imgMatch = line.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/i);
       if (imgMatch) currentProduct.image = imgMatch[1].trim();
 
-      const imgTextMatch = line.match(/(?:Image|Thumbnail|Photo|Img|Picture)(?:\*\*?)*:\s*(?:\*\*?)*(https?:\/\/[^\s*)]+)/i);
+      const imgTextMatch = line.match(/(?:\*\*?)*(?:Image|Thumbnail|Photo|Img|Picture)(?:\*\*?)*:\s*(?:\*\*?)*(https?:\/\/[^\s*)]+)/i);
       if (imgTextMatch) currentProduct.image = imgTextMatch[1].trim();
 
       const urlMatch = line.match(/(?:^|[^!])\[.*?\]\((https?:\/\/[^)]+)\)/i);
@@ -316,22 +348,7 @@ function parseProductsFromMarkdown(mdText) {
 
   return products.map(p => {
     if (!p.image) {
-      if (p.url) {
-        const kaprukaIdMatch = p.url.match(/kapruka\.com\/[^/]+\/([A-Za-z0-9_-]+)\/?$/) ||
-                               p.url.match(/kapruka\.com\/kid\/([A-Za-z0-9_-]+)/i);
-        if (kaprukaIdMatch) {
-          const pid = kaprukaIdMatch[1];
-          p.image = `https://www.kapruka.com/spicific/${pid}/0_${pid}.jpg`;
-        }
-      }
-      if (!p.image) {
-        const lt = p.title.toLowerCase();
-        if (lt.includes('cake')) p.image = 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=60';
-        else if (lt.includes('flower') || lt.includes('rose')) p.image = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=500&auto=format&fit=crop&q=60';
-        else if (lt.includes('chocolate') || lt.includes('ferrero') || lt.includes('choco')) p.image = 'https://images.unsplash.com/photo-1548907040-4d42b52145ea?w=500&auto=format&fit=crop&q=60';
-        else if (lt.includes('toy') || lt.includes('teddy')) p.image = 'https://images.unsplash.com/photo-1559251606-c623743a6d76?w=500&auto=format&fit=crop&q=60';
-        else p.image = 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&auto=format&fit=crop&q=60';
-      }
+      p.image = '';
     }
     return p;
   });
@@ -350,49 +367,79 @@ async function enrichProductsWithDetails(products) {
   }
   
   try {
-    const enriched = await Promise.all(products.map(async (p) => {
-      if (!p.product_id) return p;
+    const enriched = [];
+    for (const p of products) {
+      if (!p.product_id) {
+        enriched.push(p);
+        continue;
+      }
 
       // Skip enrichment if we already have a real Kapruka image and URL
-      const hasRealImage = p.image && !p.image.includes('images.unsplash.com');
+      // (Do not treat the broken /spicific/ or /specific/ fallback placeholder as a real image)
+      const hasRealImage = p.image && 
+                           !p.image.includes('images.unsplash.com') && 
+                           !p.image.includes('spicific') && 
+                           !p.image.includes('specific');
       const hasRealUrl = p.url && p.url.includes('kapruka.com');
       if (hasRealImage && hasRealUrl) {
-        return p;
+        enriched.push(p);
+        continue;
       }
 
       // Check cache first
       if (productDetailsCache.has(p.product_id)) {
         const cached = productDetailsCache.get(p.product_id);
-        return { ...p, ...cached };
+        enriched.push({ ...p, ...cached });
+        continue;
       }
       
       try {
-        const result = await mcpClient.callTool({
-          name: 'kapruka_get_product',
-          arguments: { params: { product_id: p.product_id } }
-        });
-        const details = formatMcpResponse(result);
-        const parsedDetails = extractProductsFromResponse(details);
-        if (parsedDetails && parsedDetails.length > 0) {
-          const detailProduct = parsedDetails[0];
-          const enrichedInfo = {
-            image: detailProduct.image ? detailProduct.image : p.image,
-            price: detailProduct.price || p.price,
-            in_stock: detailProduct.in_stock !== undefined ? detailProduct.in_stock : p.in_stock,
-            url: detailProduct.url || p.url
-          };
-          // Save to cache
-          productDetailsCache.set(p.product_id, enrichedInfo);
-          return {
-            ...p,
-            ...enrichedInfo
-          };
+        let gotValidImage = false;
+        let finalImage = '';
+        let detailProduct = null;
+
+        try {
+          const result = await mcpClient.callTool({
+            name: 'kapruka_get_product',
+            arguments: { params: { product_id: p.product_id } }
+          });
+          const details = formatMcpResponse(result);
+          const parsedDetails = extractProductsFromResponse(details);
+          if (parsedDetails && parsedDetails.length > 0) {
+            detailProduct = parsedDetails[0];
+            if (detailProduct.image && typeof detailProduct.image === 'string' && detailProduct.image.trim()) {
+              finalImage = detailProduct.image;
+              gotValidImage = true;
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to enrich product details for ${p.product_id}:`, e.message);
         }
+
+        if (!gotValidImage) {
+          const pid = p.product_id.toLowerCase();
+          finalImage = `https://www.kapruka.com/spicific/${pid}/0_${pid}.jpg`;
+        }
+
+        const enrichedInfo = {
+          image: finalImage,
+          price: detailProduct?.price || p.price,
+          in_stock: detailProduct?.in_stock !== undefined ? detailProduct.in_stock : p.in_stock,
+          url: detailProduct?.url || p.url
+        };
+
+        // Cache the enriched info
+        productDetailsCache.set(p.product_id, enrichedInfo);
+
+        enriched.push({
+          ...p,
+          ...enrichedInfo
+        });
       } catch (e) {
         console.error(`Failed to enrich product details for ${p.product_id}:`, e.message);
+        enriched.push(p);
       }
-      return p;
-    }));
+    }
     return enriched;
   } catch (err) {
     console.error('Error in enrichProductsWithDetails:', err.message);
@@ -591,7 +638,7 @@ app.get('/api/delivery', ensureMcpConnected, async (req, res) => {
     }
     
     const args = {
-      city: String(city),
+      city: cleanCityName(String(city)),
       delivery_date: formatToYYYYMMDD(String(delivery_date))
     };
     if (product_id) args.product_id = String(product_id);
@@ -719,6 +766,11 @@ app.get('/api/status', ensureMcpConnected, (req, res) => {
   });
 });
 
+// 8. Debug logs endpoint
+app.get('/api/debug-logs', (req, res) => {
+  res.json(debugLogs);
+});
+
 // --- LLM Orchestration & Agent Loop ---
 
 const SYSTEM_PROMPT = `You are Kapruka AI, a friendly, warm and smart Sri Lankan shopping assistant for Kapruka.com.
@@ -736,8 +788,8 @@ CRITICAL RULES FOR RESPONDING (FOLLOW EXACTLY):
      Example: "I found some nice flower bouquets for your friend. Take a look below!"
    - If the user writes in Sinhala script, reply in natural, casual Sinhala.
      Example: "යාලුවට දෙන්න ලස්සන මල් කළඹවල් කිහිපයක් මම හෙව්වා. පහළ තියෙන ඒව බලන්න!"
-   - If the user writes in Tanglish (Sinhala using English letters like: mata, oni, denna, epa, yaluwekta, kenk), reply in casual Tanglish.
-     Example: "Friend ta denna lassan mal kalaba keepayak mama hoyala thiyenne. Pahala thiyena ewa balanna!"
+   - If the user writes in Singlish / Tanglish (Sinhala using English/Latin alphabet letters like: mata, oni, denna, epa, yaluwekta, kenk, hoyala denna, adu gananata), ALWAYS reply in Sinhala script mixed with English words. DO NOT reply in Latin letters/Singlish.
+     Example: "ඔයාට ගැලපෙන Cake options කිහිපයක් මෙන්න. ඔයාට කැමති item එක Cart එකට එකතු කරන්න පුළුවන්!"
 
 3. UNDERSTANDING INTENT & HANDLING EXCLUSIONS (CRITICAL):
    - Pay attention to negation words like "epa" (Sinhala/Tanglish for "do not want"), "nathuwa" (without), "no", "dont want".
@@ -745,9 +797,9 @@ CRITICAL RULES FOR RESPONDING (FOLLOW EXACTLY):
      - This means they want a gift for their friend, but NOT chocolates and NOT cakes.
      - You MUST call kapruka_search_products for alternative categories like "flower" or "toy" or "hamper".
      - Never recommend or search for negated/excluded items!
-   - Chat like a real human! If you cannot get the user's idea or if the request is ambiguous/vague (e.g. "මට ඕනි 5000ට අඩුවෙන්" without specifying what item, or "yaluwekta denna gift ekak oni" without specifying a category), DO NOT guess or call random search tools. Instead, ask a polite, friendly clarification question in the user's language (Sinhala, Tanglish, or English) to understand exactly what they need:
+   - Chat like a real human! If you cannot get the user's idea or if the request is ambiguous/vague (e.g. "මට ඕනි 5000ට අඩුවෙන්" without specifying what item, or "yaluwekta denna gift ekak oni" without specifying a category), DO NOT guess or call random search tools. Instead, ask a polite, friendly clarification question in the user's language (Sinhala script, or Sinhala script mixed with English if they ask in Singlish, or English if they ask in English) to understand exactly what they need:
      * English: "Sure! What kind of product or gift are you looking for? I can search for cakes, flowers, chocolates, watches, and more!"
-     * Tanglish: "Sure! Oya monawage product ekakda balanne? Cakes, flowers, chocolates, watches wage monawada search karanna oni?"
+     * Singlish/Tanglish: "Sure! ඔයා මොන වගේ product එකක්ද හොයන්නේ? මට cakes, flowers, chocolates, watches වගේ දේවල් search කරන්න පුළුවන්!"
      * Sinhala: "ඔබ සොයන්නේ කුමන ආකාරයේ භාණ්ඩයක්ද? මට කේක්, මල්, චොකලට්, ඔරලෝසු වැනි දේවල් සොයා දිය හැකියි!"
 
 4. SEARCH & PRODUCT DETAILS:
@@ -760,7 +812,23 @@ CRITICAL RULES FOR RESPONDING (FOLLOW EXACTLY):
      * "kenek / kenekta / kenkt" -> "person/someone" (e.g. "boy kenkt" means "for a boy"). It is NOT a cake!
    - When a user asks for more information about a product, call kapruka_get_product. Write a short 1-2 sentence friendly summary (e.g., flavor, size, who it is good for). Do NOT output technical bullet points.
 
-5. ERROR HANDLING POLICY:
+5. SINGLISH TO ENGLISH E-COMMERCE MAPPING REFERENCE (TRAINING DATA):
+   - "mata oni / hoyala denna" -> "I want / please find for me" (Start search)
+   - "penna / thiyenawada / hoyanna" -> "Show me / is it available? / search"
+   - "pirimi lamayek / kolla ekata / purusha ekata" -> "For a boy / young male / man" (Filter by male gender)
+   - "gani lamayek / kella ekata / amma ekata / thaththata / yaluwata" -> "For a girl / female / mother / father / friend"
+   - "adu gananata / budget eka / range eka" -> "Cheaper / budget range filter"
+   - "wediya gaana" -> "Too expensive"
+   - "discount/offer thiyenawada" -> "Is there a discount/deal?"
+   - "order karanna / confirm karanna / gannawa meeka" -> "Place or confirm order"
+   - "cart ekata danna / danna / add karanna" -> "Add to cart"
+   - "cancel karanna / change karanna / ain karanna" -> "Cancel / modify / remove item"
+   - "delivery/shipping charge kiyada" -> "How much is the delivery rate?"
+   - "free delivery thiyenawada" -> "Is delivery free?"
+   - "damage wela awa / kelinma naha" -> "Arrived damaged / broken (complaint)"
+   - "urgent ekak" -> "Urgent delivery request"
+
+6. ERROR HANDLING POLICY:
    - If a tool fails or throws an error, apologize gracefully. DO NOT mention developer logs, JSON keys, thought signatures, or backend errors to the user.
    - Friendly error example: "Oops, I'm having trouble retrieving the products right now. Let me try again in a moment."`;
 
@@ -1109,7 +1177,7 @@ async function handleMockAgent(messages, clientLang) {
           timelineMd + `\n` +
           (resultText ? `**සටහන:** ${resultText}` : '');
       } else if (language === 'tanglish') {
-        responseText = `Oyage order #${orderNumber} eke details methana thiyenawa:\n` +
+        responseText = `ඔයාගේ order #${orderNumber} එකේ details මෙන්න:\n` +
           `**Status:** ${status}\n` +
           timelineMd + `\n` +
           (resultText ? `**Note:** ${resultText}` : '');
@@ -1143,7 +1211,7 @@ async function handleMockAgent(messages, clientLang) {
       if (language === 'si') {
         responseText = `Ayu Bowan! ඔයාගේ සෙවුමට ගැලපෙන හොඳම ${keyword} නිෂ්පාදන කිහිපයක් මෙන්න. ඔයාට කැමති නිෂ්පාදනයක් තෝරාගෙන Cart එකට එකතු කරන්න පුළුවන්!`;
       } else if (language === 'tanglish') {
-        responseText = `Ayu Bowan! Oyage search ekata match wana ${keyword} products thiyenawa. Cart ekata add karaganna puluwan!`;
+        responseText = `ආයුබෝවන්! 🇱🇰 ඔයාගේ search එකට match වන හොඳම ${keyword} products කිහිපයක් මෙන්න. ඔයාට කැමති item එක තෝරලා Cart එකට එකතු කරන්න පුළුවන්!`;
       } else {
         responseText = `Ayu Bowan! 🇱🇰 Based on your search, I found some excellent options matching "${keyword}" for you. You can see them below. Add them to your cart to get started!`;
       }
@@ -1161,7 +1229,7 @@ async function handleMockAgent(messages, clientLang) {
   if (language === 'si') {
     fallbackText = "මම කප්රුක AI සාප්පු සවාරි සහායකයා වෙමි. මට කේක්, මල්, චොකලට්, සෙල්ලම් බඩු සෙවීමට මෙන්ම ඔබගේ ඇණවුම් ලුහුබැඳීමට සහ බෙදා හැරීමේ ගාස්තු පරීක්ෂා කිරීමට උදව් කළ හැකිය. අද ඔබට අවශ්‍ය කුමක්ද?";
   } else if (language === 'tanglish') {
-    fallbackText = "Mama Kapruka AI Shopping Assistant. Mata cake, flowers, chocolates, toys hoyanna udaw karanna puluwan. E wagema order track karanna saha delivery fee check karannath puluwan. Ada oyata monawada ona?";
+    fallbackText = "ආයුබෝවන්! 🇱🇰 මම කප්රුක AI Shopping Assistant. මට ඔයාට cakes, flowers, chocolates, toys සහ gift hampers සොයාගන්න udaw කරන්න පුළුවන්. ඒ වගේම ඔයාගේ orders track කරන්න සහ delivery rates check කරන්නත් පුළුවන්. අද ඔයාට මොනවාද ඕනේ?";
   } else {
     fallbackText = "Ayu Bowan! 🇱🇰 I am your Kapruka AI Shopping Assistant. I can help you search for cakes, flowers, chocolates, toys, and gift hampers. I can also track your orders and check delivery rates. What can I do for you today?";
   }
@@ -1214,8 +1282,11 @@ async function runGeminiAgentWithSingleKey(messages, clientLang, apiKey, models)
 
   let dynamicSystemPrompt = SYSTEM_PROMPT;
   if (clientLang) {
-    const langNames = { en: 'English', si: 'Sinhala script', tanglish: 'Tanglish (Sinhala language written using the English/Latin alphabet)' };
-    dynamicSystemPrompt += `\n\n[System Override: The user's active UI interface language is set to ${langNames[clientLang] || clientLang}, but ALWAYS reply in the exact language the user writes in (e.g., if they ask in Sinhala, reply in Sinhala; if in English, reply in English).]`;
+    const langNames = { en: 'English', si: 'Sinhala script', tanglish: 'Tanglish/Singlish (Sinhala written in English/Latin alphabet letters)' };
+    dynamicSystemPrompt += `\n\n[System Override: The user's active UI interface language is set to ${langNames[clientLang] || clientLang}. Follow these language rules exactly:\n` +
+      `- If the user writes in English, reply in casual English.\n` +
+      `- If the user writes in Sinhala script, reply in natural Sinhala script.\n` +
+      `- If the user writes in Singlish/Tanglish (Sinhala using English letters, e.g. 'mata cake ekak oni', 'gift ekak hoyala denna'), ALWAYS reply in Sinhala script mixed with English words (e.g. 'ඔයාට ගැලපෙන Cake options කිහිපයක් මෙන්න. ඔයාට කැමති item එක Cart එකට එකතු කරන්න පුළුවන්!'). Do NOT reply in Latin letters/Singlish.]`;
   }
 
   const systemInstruction = {
@@ -1408,8 +1479,11 @@ async function runOpenAiCompatibleAgentLoop(messages, clientLang, providerType, 
   // Add system message first
   let dynamicSystemPrompt = SYSTEM_PROMPT;
   if (clientLang) {
-    const langNames = { en: 'English', si: 'Sinhala script', tanglish: 'Tanglish (Sinhala language written using the English/Latin alphabet)' };
-    dynamicSystemPrompt += `\n\n[System Override: The user's active UI interface language is set to ${langNames[clientLang] || clientLang}, but ALWAYS reply in the exact language the user writes in (e.g., if they ask in Sinhala, reply in Sinhala; if in English, reply in English).]`;
+    const langNames = { en: 'English', si: 'Sinhala script', tanglish: 'Tanglish/Singlish (Sinhala written in English/Latin alphabet letters)' };
+    dynamicSystemPrompt += `\n\n[System Override: The user's active UI interface language is set to ${langNames[clientLang] || clientLang}. Follow these language rules exactly:\n` +
+      `- If the user writes in English, reply in casual English.\n` +
+      `- If the user writes in Sinhala script, reply in natural Sinhala script.\n` +
+      `- If the user writes in Singlish/Tanglish (Sinhala using English letters, e.g. 'mata cake ekak oni', 'gift ekak hoyala denna'), ALWAYS reply in Sinhala script mixed with English words (e.g. 'ඔයාට ගැලපෙන Cake options කිහිපයක් මෙන්න. ඔයාට කැමති item එක Cart එකට එකතු කරන්න පුළුවන්!'). Do NOT reply in Latin letters/Singlish.]`;
   }
   apiMessages.push({ role: 'system', content: dynamicSystemPrompt });
 
@@ -1577,8 +1651,11 @@ async function runClaudeAgent(messages, clientLang, apiKey, model) {
 
   let dynamicSystemPrompt = SYSTEM_PROMPT;
   if (clientLang) {
-    const langNames = { en: 'English', si: 'Sinhala script', tanglish: 'Tanglish (Sinhala language written using the English/Latin alphabet)' };
-    dynamicSystemPrompt += `\n\n[System Override: The user's active UI interface language is set to ${langNames[clientLang] || clientLang}, but ALWAYS reply in the exact language the user writes in (e.g., if they ask in Sinhala, reply in Sinhala; if in English, reply in English).]`;
+    const langNames = { en: 'English', si: 'Sinhala script', tanglish: 'Tanglish/Singlish (Sinhala written in English/Latin alphabet letters)' };
+    dynamicSystemPrompt += `\n\n[System Override: The user's active UI interface language is set to ${langNames[clientLang] || clientLang}. Follow these language rules exactly:\n` +
+      `- If the user writes in English, reply in casual English.\n` +
+      `- If the user writes in Sinhala script, reply in natural Sinhala script.\n` +
+      `- If the user writes in Singlish/Tanglish (Sinhala using English letters, e.g. 'mata cake ekak oni', 'gift ekak hoyala denna'), ALWAYS reply in Sinhala script mixed with English words (e.g. 'ඔයාට ගැලපෙන Cake options කිහිපයක් මෙන්න. ඔයාට කැමති item එක Cart එකට එකතු කරන්න පුළුවන්!'). Do NOT reply in Latin letters/Singlish.]`;
   }
 
   while (iteration < maxIterations) {

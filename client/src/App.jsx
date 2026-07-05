@@ -297,6 +297,20 @@ const extractCities = (data) => {
   return matches.map(m => m[1].trim());
 };
 
+// Clean Colombo city format (e.g. "Colombo 03 (Colpetty)" -> "Colombo 03")
+const cleanCityName = (cityStr) => {
+  if (!cityStr || typeof cityStr !== 'string') return '';
+  let cleaned = cityStr.replace(/\s*\([^)]*\)/g, '').trim();
+  const match = cleaned.match(/^colombo\s+(\d+)$/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num <= 15) {
+      cleaned = `Colombo ${String(num).padStart(2, '0')}`;
+    }
+  }
+  return cleaned;
+};
+
 // Parser for products from markdown text
 function parseProductsFromMarkdown(mdText) {
   if (!mdText || typeof mdText !== 'string') return [];
@@ -307,7 +321,7 @@ function parseProductsFromMarkdown(mdText) {
 
   // Helper: extract price from any text
   const extractPrice = (text) => {
-    const m = text.match(/(?:lkr|rs\.?)\s*([\d,]+)/i);
+    const m = text.match(/\b(?:lkr|rs\.?)\b\s*([\d,]+)/i);
     return m ? `LKR ${m[1]}` : null;
   };
 
@@ -315,8 +329,9 @@ function parseProductsFromMarkdown(mdText) {
   const isNonProductTitle = (t) => {
     if (!t || t.length < 4) return true;
     if (t.endsWith(':')) return true;
-    if (/^(id|url|link|image|price|note|info)$/i.test(t)) return true;
-    if (/^(shipping|estimated|tracking|shipment|local delivery|insurance|vendor|weight|dimension|colour|color|size|material|brand|sku|barcode|specification|detail|benefit|warning|caution)/i.test(t)) return true;
+    const lower = t.toLowerCase();
+    if (/^(id|url|link|image|price|note|info|stock|category|vendor|availability|status|search)$/i.test(t)) return true;
+    if (/(shipping|estimated|tracking|shipment|local delivery|insurance|vendor|weight|dimension|colour|color|size|material|brand|sku|barcode|specification|detail|benefit|warning|caution|search results|kapruka search|direct search|කප්රුක සෙවුම|සෙවුම|here are|oyage|ඔබගේ)/i.test(lower)) return true;
     return false;
   };
 
@@ -326,7 +341,10 @@ function parseProductsFromMarkdown(mdText) {
       const idFromUrl = currentProduct.url.match(/\/kid\/([^/]+)/i) || currentProduct.url.match(/\/([^/]+)$/);
       if (idFromUrl) currentProduct.product_id = idFromUrl[1].toUpperCase();
     }
-    products.push(currentProduct);
+    // Only save if it has at least one identifying/descriptive property (price, product_id, image, or url)
+    if (currentProduct.price || currentProduct.product_id || currentProduct.image || currentProduct.url) {
+      products.push(currentProduct);
+    }
     currentProduct = null;
   };
 
@@ -345,12 +363,12 @@ function parseProductsFromMarkdown(mdText) {
           title,
           price: `LKR ${priceVal}`,
           in_stock: true,
-          image: FALLBACK_IMAGE,
+          image: '',
           product_id: '',
           url: ''
         };
+        continue;
       }
-      continue;
     }
 
     // FORMAT 2: Bold title "**Title**" possibly with price on same line
@@ -365,12 +383,12 @@ function parseProductsFromMarkdown(mdText) {
           title: candidateTitle,
           price: inlinePrice, // null if not found
           in_stock: true,
-          image: FALLBACK_IMAGE,
+          image: '',
           product_id: '',
           url: ''
         };
+        continue;
       }
-      continue;
     }
 
     // FORMAT 3: Plain "- Title - LKR X" or "- Title: LKR X"
@@ -383,12 +401,30 @@ function parseProductsFromMarkdown(mdText) {
           title: candidateTitle,
           price: `LKR ${dashTitlePrice[2]}`,
           in_stock: true,
-          image: FALLBACK_IMAGE,
+          image: '',
           product_id: '',
           url: ''
         };
+        continue;
       }
-      continue;
+    }
+
+    // FORMAT 4: "## Title" or "### Title" (Markdown Headings)
+    const headingMatch = line.match(/^#{1,4}\s+(.+)$/);
+    if (headingMatch) {
+      const candidateTitle = headingMatch[1].trim().replace(/\*\*/g, '');
+      if (!isNonProductTitle(candidateTitle)) {
+        saveCurrentProduct();
+        currentProduct = {
+          title: candidateTitle,
+          price: null,
+          in_stock: true,
+          image: '',
+          product_id: '',
+          url: ''
+        };
+        continue;
+      }
     }
 
     // For current product: extract sub-fields from following lines
@@ -428,23 +464,8 @@ function parseProductsFromMarkdown(mdText) {
   saveCurrentProduct();
 
   return products.map(p => {
-    if (!p.image || p.image === FALLBACK_IMAGE) {
-      if (p.url) {
-        const kaprukaIdMatch = p.url.match(/kapruka\.com\/[^/]+\/([A-Za-z0-9_-]+)\/?$/) ||
-                               p.url.match(/kapruka\.com\/kid\/([A-Za-z0-9_-]+)/i);
-        if (kaprukaIdMatch) {
-          const pid = kaprukaIdMatch[1];
-          p.image = `https://www.kapruka.com/spicific/${pid}/0_${pid}.jpg`;
-        }
-      }
-      if (!p.image || p.image === FALLBACK_IMAGE) {
-        const lt = p.title.toLowerCase();
-        if (lt.includes('cake')) p.image = 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=60';
-        else if (lt.includes('flower') || lt.includes('rose')) p.image = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=500&auto=format&fit=crop&q=60';
-        else if (lt.includes('chocolate') || lt.includes('ferrero') || lt.includes('choco')) p.image = 'https://images.unsplash.com/photo-1548907040-4d42b52145ea?w=500&auto=format&fit=crop&q=60';
-        else if (lt.includes('toy') || lt.includes('teddy')) p.image = 'https://images.unsplash.com/photo-1559251606-c623743a6d76?w=500&auto=format&fit=crop&q=60';
-        else p.image = 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&auto=format&fit=crop&q=60';
-      }
+    if (!p.image) {
+      p.image = '';
     }
     return p;
   });
@@ -468,7 +489,7 @@ const normalizeProductPrice = (p) => {
     title: p.title || p.name || p.product_name || '',
     price: normalizedPrice,
     in_stock: p.in_stock !== undefined ? p.in_stock : true,
-    image: p.image || p.image_url || p.thumbnail || p.photo || FALLBACK_IMAGE,
+    image: p.image || p.image_url || p.thumbnail || p.photo || '',
     url: p.url || p.product_url || p.link || '',
     product_id: p.product_id || p.id || ''
   };
@@ -590,6 +611,54 @@ function ProductSkeleton() {
   );
 }
 
+// Helper to retrieve high-quality matched fallback images for common gift items
+const getFallbackImage = (title) => {
+  const t = (title || '').toLowerCase();
+  if (t.includes('cake') || t.includes('gateau') || t.includes('velvet') || t.includes('gateaux')) {
+    return 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('flower') || t.includes('bouquet') || t.includes('rose') || t.includes('blossom') || t.includes('orchid') || t.includes('lily') || t.includes('flora')) {
+    return 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('chocolate') || t.includes('toblerone') || t.includes('ferrero') || t.includes('cadbury') || t.includes('praline')) {
+    return 'https://images.unsplash.com/photo-1548907040-4d42b52125e0?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('watch') || t.includes('clock') || t.includes('casio') || t.includes('titan') || t.includes('timepiece')) {
+    return 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('toy') || t.includes('lego') || t.includes('doll') || t.includes('bear') || t.includes('cuddly') || t.includes('plush') || t.includes('kid')) {
+    return 'https://images.unsplash.com/photo-1537655780520-1e392edd816a?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('perfume') || t.includes('cologne') || t.includes('fragrance') || t.includes('body spray') || t.includes('scent')) {
+    return 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('hamper') || t.includes('gift basket') || t.includes('pack') || t.includes('combo')) {
+    return 'https://images.unsplash.com/photo-1545601445-4d6a0a0565f0?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('shirt') || t.includes('tshirt') || t.includes('clothing') || t.includes('frock') || t.includes('dress') || t.includes('wear') || t.includes('pant') || t.includes('jeans')) {
+    return 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('shoe') || t.includes('sandal') || t.includes('slipper') || t.includes('boot') || t.includes('footwear')) {
+    return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('glass') || t.includes('spectacle') || t.includes('sunglass')) {
+    return 'https://images.unsplash.com/photo-1508296695146-257a814070b4?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('purse') || t.includes('wallet') || t.includes('handbag') || t.includes('backpack') || t.includes('bag')) {
+    return 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('mug') || t.includes('cup') || t.includes('plate') || t.includes('kitchen') || t.includes('dinnerware')) {
+    return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('fruit') || t.includes('apple') || t.includes('orange') || t.includes('mango') || t.includes('banana')) {
+    return 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400&auto=format&fit=crop&q=80';
+  }
+  if (t.includes('food') || t.includes('biscuit') || t.includes('cookie') || t.includes('cheese') || t.includes('snack') || t.includes('tea') || t.includes('coffee')) {
+    return 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&auto=format&fit=crop&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400&auto=format&fit=crop&q=80'; // generic gift placeholder
+};
+
 // Reusable premium visual product card component
 function ProductCard({ product, onAddToCart, language = 'en' }) {
   const [added, setAdded] = React.useState(false);
@@ -597,9 +666,12 @@ function ProductCard({ product, onAddToCart, language = 'en' }) {
   const title = product.title || product.name || 'Kapruka Gift';
   const rawPrice = product.price || product.price_lkr;
   const price = rawPrice && rawPrice !== 'null' ? rawPrice : null;
-  const img = product.image || product.image_url || FALLBACK_IMAGE;
+  const [imgUrl, setImgUrl] = React.useState(product.image || product.image_url || getFallbackImage(title));
   const isStock = product.stock !== false && product.in_stock !== false;
 
+  React.useEffect(() => {
+    setImgUrl(product.image || product.image_url || getFallbackImage(title));
+  }, [product.image, product.image_url, title]);
 
   const handleAdd = () => {
     onAddToCart(product);
@@ -611,13 +683,33 @@ function ProductCard({ product, onAddToCart, language = 'en' }) {
     <div 
       className="bg-slate-900 border border-slate-800 hover:border-kapruka-purple-light rounded-xl overflow-hidden shadow-lg flex flex-col product-card-hover animate-fade-in w-full"
     >
-      <div className="h-36 overflow-hidden bg-slate-950 relative">
-        <img 
-          src={img} 
-          alt={title}
-          onError={e => { e.target.onerror = null; e.target.src = FALLBACK_IMAGE; }}
-          className="w-full h-full object-cover transition duration-500"
-        />
+      <div className="h-36 overflow-hidden bg-slate-950 relative flex items-center justify-center">
+        {imgUrl ? (
+          <img 
+            src={imgUrl} 
+            alt={title}
+            referrerPolicy="no-referrer"
+            onError={e => { 
+              const fallback = getFallbackImage(title);
+              if (imgUrl !== fallback) {
+                setImgUrl(fallback);
+              } else {
+                e.target.onerror = null; 
+                e.target.style.display = 'none'; 
+                const sib = e.target.parentNode.querySelector('.img-error-fallback');
+                if (sib) sib.style.display = 'flex';
+              }
+            }}
+            className="w-full h-full object-cover transition duration-500"
+          />
+        ) : null}
+        <div 
+          className="img-error-fallback absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-4 text-center text-xs gap-1 font-outfit"
+          style={{ display: imgUrl ? 'none' : 'flex' }}
+        >
+          <span className="text-lg">📸</span>
+          <span className="font-semibold text-[9px] uppercase tracking-wider text-slate-500">Image Not Available</span>
+        </div>
         <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded font-bold ${
           isStock ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
         }`}>
@@ -1088,9 +1180,10 @@ export default function App() {
     if (!searchQuery) return;
     
     setIsSearching(true);
+    const queryTerm = searchQuery;
     const startTime = Date.now();
     try {
-      const url = `/api/search?q=${encodeURIComponent(searchQuery)}${category ? `&category=${encodeURIComponent(category)}` : ''}&limit=8`;
+      const url = `/api/search?q=${encodeURIComponent(queryTerm)}${category ? `&category=${encodeURIComponent(category)}` : ''}&limit=8`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -1101,7 +1194,33 @@ export default function App() {
           await new Promise(resolve => setTimeout(resolve, remaining));
         }
 
-        setSearchResults(normalizeProducts(data));
+        const normalized = normalizeProducts(data);
+        
+        // Append user search query and agent search results to messages so it scrolls naturally in the chat window
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now(),
+            sender: 'user',
+            text: queryTerm,
+            timestamp: new Date()
+          },
+          {
+            id: Date.now() + 1,
+            sender: 'agent',
+            text: language === 'si'
+              ? `"${queryTerm}" සඳහා සොයාගත් කප්රුක නිෂ්පාදන මෙන්න:`
+              : language === 'tanglish'
+              ? `Here are the search results for "${queryTerm}":`
+              : `Here are the search results for "${queryTerm}":`,
+            products: normalized,
+            timestamp: new Date()
+          }
+        ]);
+        
+        // Clear side search input
+        setSearchQuery('');
+        setSearchResults([]);
       }
     } catch (error) {
       console.error('Catalog search failed:', error);
@@ -1240,7 +1359,8 @@ export default function App() {
       setIsCheckingDelivery(true);
       setDeliveryError(null);
       try {
-        const res = await fetch(`/api/delivery?city=${encodeURIComponent(selectedCity)}&delivery_date=${deliveryDate}`);
+        const cleanCity = cleanCityName(selectedCity);
+        const res = await fetch(`/api/delivery?city=${encodeURIComponent(cleanCity)}&delivery_date=${deliveryDate}`);
         if (res.ok) {
           const data = await res.json();
           const resultText = data.result || data.text || '';
@@ -1322,7 +1442,7 @@ export default function App() {
     
     const delivery = {
       address: streetAddress.trim(),
-      city: selectedCity,
+      city: cleanCityName(selectedCity),
       location_type: locationType || 'house',
       date: formatDateToYYYYMMDD(deliveryDate),
       instructions: deliveryInstructions ? deliveryInstructions.trim() : null
@@ -1741,7 +1861,7 @@ export default function App() {
         )}
         
         {/* Mobile / Tiny Screen Header */}
-        <div className="md:hidden p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between z-10">
+        <div className="kapruka-header md:hidden p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -1773,7 +1893,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto p-6 space-y-4 z-10">
           
           {/* Welcome Notification Banner */}
-          <div className="max-w-2xl mx-auto bg-gradient-to-r from-kapruka-purple-deep to-slate-900 rounded-xl p-4 border border-kapruka-purple-light/40 flex items-start gap-4 relative overflow-hidden premium-glow-border">
+          <div className="welcome-banner max-w-2xl mx-auto bg-gradient-to-r from-kapruka-purple-deep to-slate-900 rounded-xl p-4 border border-kapruka-purple-light/40 flex items-start gap-4 relative overflow-hidden premium-glow-border">
             <Sparkles className="w-6 h-6 text-kapruka-yellow shrink-0 mt-0.5 animate-pulse" />
             <div className="text-xs space-y-1 z-10">
               <h4 className="font-bold text-white font-outfit">{translations[language].welcomeTitle}</h4>
@@ -1844,34 +1964,6 @@ export default function App() {
             ))}
             <div ref={messagesEndRef} />
           </div>
-
-          {/* Visual Product Search Result Grid */}
-          {searchResults.length > 0 && (
-            <div className="max-w-2xl mx-auto border-t border-slate-800/80 pt-6 mt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-outfit text-md font-bold text-white flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-kapruka-yellow" /> {translations[language].recommendedGifts}
-                </h3>
-                <button 
-                  onClick={() => setSearchResults([])}
-                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
-                >
-                  <X className="w-3.5 h-3.5" /> {translations[language].clearResults}
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {searchResults.slice(0, 6).map((product) => (
-                  <ProductCard 
-                    key={product.product_id || product.id} 
-                    product={product} 
-                    onAddToCart={addToCart} 
-                    language={language}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
 
         </div>
 
@@ -1955,8 +2047,27 @@ export default function App() {
                       return (
                         <div key={id} className="bg-slate-950/60 p-3 rounded-xl border border-slate-850 flex gap-3 items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-slate-900 rounded-lg overflow-hidden shrink-0">
-                              <img src={item.image || item.image_url || FALLBACK_IMAGE} alt={title} onError={e => { e.target.onerror = null; e.target.src = FALLBACK_IMAGE; }} className="w-full h-full object-cover" />
+                            <div className="w-12 h-12 bg-slate-900 rounded-lg overflow-hidden shrink-0 relative flex items-center justify-center">
+                              {item.image || item.image_url ? (
+                                <img 
+                                  src={item.image || item.image_url} 
+                                  alt={title} 
+                                  referrerPolicy="no-referrer" 
+                                  onError={e => { 
+                                    e.target.onerror = null; 
+                                    e.target.style.display = 'none'; 
+                                    const sib = e.target.parentNode.querySelector('.cart-img-fallback');
+                                    if (sib) sib.style.display = 'flex';
+                                  }} 
+                                  className="w-full h-full object-cover" 
+                                />
+                              ) : null}
+                              <div 
+                                className="cart-img-fallback absolute inset-0 flex items-center justify-center bg-slate-950 text-[10px] text-slate-500 font-bold"
+                                style={{ display: (item.image || item.image_url) ? 'none' : 'flex' }}
+                              >
+                                📸
+                              </div>
                             </div>
                             <div>
                               <h4 className="text-xs font-bold text-white line-clamp-1">{title}</h4>

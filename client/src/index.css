@@ -139,27 +139,27 @@ html,
 
 /* Light mode overrides */
 .light-mode {
-  --bg-app: #f4f4f8;
-  --bg-panel: #ffffff;
-  --bg-card: #ffffff;
-  --bg-input: #ffffff;
-  --bg-bubble-ai: #ffffff;
-  --bg-bubble-user: #ede9f8;
-  --bg-sidebar-section: #f9f9fc;
-  --text-primary: #1a1a2e;
-  --text-secondary: #444466;
-  --text-muted: #888899;
-  --border-color: #e0e0ec;
-  --header-bg: #402970;
-  --header-text: #ffffff;
-  --chip-bg: #ede9f8;
-  --chip-text: #402970;
-  --chip-border: #c4b5e8;
-  --scrollbar-track: #f1f3f5;
-  --scrollbar-thumb: #c4b5e8;
+  --bg-app: #f8fafc;        /* Clean off-white background */
+  --bg-panel: #ffffff;      /* Clean white panel background */
+  --bg-card: #ffffff;       /* Clean white card background */
+  --bg-input: #ffffff;      /* Clean white input background */
+  --bg-bubble-ai: #f1f5f9;  /* Off-white background for AI bubble */
+  --bg-bubble-user: #ede9f8;/* Light purple background for user bubble */
+  --bg-sidebar-section: #f8fafc; /* Very light slate-gray for sections */
+  --text-primary: #1e293b;  /* Dark slate for highly readable primary text */
+  --text-secondary: #475569;/* Slate-600 for secondary text */
+  --text-muted: #64748b;    /* Slate-500 for muted text/placeholders */
+  --border-color: #cbd5e1;  /* Light slate border for cards/dividers */
+  --header-bg: #402970;     /* Kapruka Deep Purple for header */
+  --header-text: #ffffff;   /* White text on dark header */
+  --chip-bg: #ede9f8;       /* Light purple chip background */
+  --chip-text: #402970;     /* Deep purple chip text */
+  --chip-border: #c4b5e8;   /* Lavender border for chips */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
 }
 
-/* Apply CSS vars to elements */
+/* Apply CSS vars to elements in light mode */
 .light-mode {
   background-color: var(--bg-app) !important;
   color: var(--text-primary) !important;
@@ -174,13 +174,13 @@ html,
   color: var(--text-primary) !important;
 }
 
-/* Semi-transparent panels */
+/* Semi-transparent panels and overlays */
 .light-mode [style*="background"],
 .light-mode [class*="bg-slate-950\/"],
 .light-mode [class*="bg-slate-900\/"],
 .light-mode [class*="bg-slate-850\/"],
 .light-mode [class*="bg-slate-800\/"] {
-  background-color: rgba(255,255,255,0.97) !important;
+  background-color: var(--bg-panel) !important;
 }
 
 /* Borders */
@@ -188,7 +188,7 @@ html,
   border-color: var(--border-color) !important;
 }
 
-/* Text */
+/* Text overrides in light mode — generally force light text to dark */
 .light-mode [class*="text-white"],
 .light-mode [class*="text-slate-100"],
 .light-mode [class*="text-slate-200"],
@@ -201,7 +201,7 @@ html,
   color: var(--text-secondary) !important;
 }
 
-/* Header bar — always Kapruka purple */
+/* Header bar (desktop and mobile) — always Kapruka Deep Purple */
 .light-mode .kapruka-header {
   background-color: #402970 !important;
 }
@@ -209,98 +209,170 @@ html,
   color: #ffffff !important;
 }
 .light-mode .kapruka-header button {
-  border-color: rgba(255,255,255,0.35) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
 }
 
 /* Sidebar */
 .light-mode .kapruka-sidebar {
-  background-color: #ffffff !important;
-  border-right-color: #e0e0ec !important;
+  background-color: var(--bg-app) !important;
+  border-right-color: var(--border-color) !important;
 }
 
 /* Sidebar sections */
 .light-mode .sidebar-section {
-  background-color: #f4f4fa !important;
-  border-color: #e0e0ec !important;
+  background-color: var(--bg-sidebar-section) !important;
+  border-color: var(--border-color) !important;
 }
 .light-mode .sidebar-section * {
   color: var(--text-primary) !important;
 }
 
-/* Cart panel */
+/* Cart panel / drawer */
 .light-mode .kapruka-cart {
-  background-color: #ffffff !important;
-  border-left-color: #e0e0ec !important;
+  background-color: var(--bg-app) !important;
+  border-left-color: var(--border-color) !important;
 }
 
 /* Chat bubbles — AI */
 .light-mode .chat-bubble-ai {
-  background-color: #ffffff !important;
-  border: 1px solid #e8e8f0 !important;
-  color: #1a1a2e !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+  background-color: var(--bg-bubble-ai) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Chat bubbles — User */
 .light-mode .chat-bubble-user {
-  background-color: #ede9f8 !important;
+  background-color: var(--bg-bubble-user) !important;
   color: #2d1a5e !important;
 }
 
-/* Product cards */
+/* Product cards styling in light mode */
 .light-mode .product-card-hover {
-  background-color: #ffffff !important;
-  border-color: #e0e0ec !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+  background-color: var(--bg-panel) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 .light-mode .product-card-hover:hover {
   border-color: #402970 !important;
-  box-shadow: 0 8px 24px rgba(64,41,112,0.15) !important;
+  box-shadow: 0 8px 24px rgba(64, 41, 112, 0.15) !important;
 }
 .light-mode .product-card-hover h4 {
-  color: #1a1a2e !important;
+  color: var(--text-primary) !important;
 }
 
 /* Chips / pills */
 .light-mode .category-chip {
-  background-color: #ede9f8 !important;
-  color: #402970 !important;
-  border-color: #c4b5e8 !important;
+  background-color: var(--chip-bg) !important;
+  color: var(--chip-text) !important;
+  border-color: var(--chip-border) !important;
 }
 
-/* Inputs */
+/* Form inputs & dropdowns */
 .light-mode input,
 .light-mode select,
 .light-mode textarea {
-  background-color: #ffffff !important;
-  color: #1a1a2e !important;
-  border-color: #d1d5db !important;
+  background-color: var(--bg-panel) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
 }
 .light-mode input::placeholder,
 .light-mode textarea::placeholder {
-  color: #9ca3af !important;
+  color: var(--text-muted) !important;
 }
 
 /* Keep purple/yellow accent colors readable based on background contrast */
 .light-mode [class*="text-kapruka-yellow"] { color: #402970 !important; }
 .light-mode [class*="text-kapruka-purple"] { color: #402970 !important; }
 
-/* Keep yellow text bright on elements that remain dark in light mode */
+/* Keep yellow text bright on dark containers that remain dark in light mode */
 .light-mode [class*="bg-kapruka-purple"] [class*="text-kapruka-yellow"],
 .light-mode [class*="bg-purple-"] [class*="text-kapruka-yellow"],
-.light-mode [class*="bg-slate-950"] [class*="text-kapruka-yellow"],
-.light-mode [class*="bg-slate-900"] [class*="text-kapruka-yellow"],
-.light-mode .kapruka-header [class*="text-kapruka-yellow"],
-.light-mode .kapruka-sidebar [class*="text-kapruka-yellow"] {
+.light-mode .kapruka-header [class*="text-kapruka-yellow"] {
   color: #facc15 !important;
 }
 
+/* Enforce dark-colored background containers to remain dark with white/light text */
 .light-mode [class*="bg-kapruka-purple"],
-.light-mode [class*="bg-purple-"] { background-color: #402970 !important; color: #ffffff !important; }
-.light-mode [class*="bg-emerald"] { background-color: #059669 !important; color: #ffffff !important; }
-.light-mode [class*="bg-rose"] { background-color: #e11d48 !important; color: #ffffff !important; }
+.light-mode [class*="bg-purple-"] { 
+  background-color: #402970 !important; 
+  color: #ffffff !important; 
+}
+.light-mode [class*="bg-emerald"] { 
+  background-color: #059669 !important; 
+  color: #ffffff !important; 
+}
+.light-mode [class*="bg-rose"] { 
+  background-color: #e11d48 !important; 
+  color: #ffffff !important; 
+}
 
-/* Scrollbars */
-.light-mode ::-webkit-scrollbar-track { background: #f1f3f5 !important; }
-.light-mode ::-webkit-scrollbar-thumb { background: #c4b5e8 !important; }
+/* Ensure white/light text is preserved inside dark elements in light mode */
+.light-mode .kapruka-header [class*="text-white"],
+.light-mode .kapruka-header [class*="text-slate-100"],
+.light-mode .kapruka-header [class*="text-slate-200"],
+.light-mode .kapruka-header [class*="text-slate-300"],
+.light-mode [class*="bg-kapruka-purple"] [class*="text-white"],
+.light-mode [class*="bg-kapruka-purple"] [class*="text-slate-100"],
+.light-mode [class*="bg-kapruka-purple"] [class*="text-slate-200"],
+.light-mode [class*="bg-kapruka-purple"] [class*="text-slate-300"],
+.light-mode [class*="bg-purple-"] [class*="text-white"],
+.light-mode [class*="bg-purple-"] [class*="text-slate-100"],
+.light-mode [class*="bg-purple-"] [class*="text-slate-200"],
+.light-mode [class*="bg-purple-"] [class*="text-slate-300"],
+.light-mode [class*="bg-emerald"] [class*="text-white"],
+.light-mode [class*="bg-emerald"] [class*="text-slate-100"],
+.light-mode [class*="bg-emerald"] [class*="text-slate-200"],
+.light-mode [class*="bg-emerald"] [class*="text-slate-300"],
+.light-mode [class*="bg-rose"] [class*="text-white"],
+.light-mode [class*="bg-rose"] [class*="text-slate-100"],
+.light-mode [class*="bg-rose"] [class*="text-slate-200"],
+.light-mode [class*="bg-rose"] [class*="text-slate-300"] {
+  color: #ffffff !important;
+}
+
+/* Explicit rule for elements themselves that are both dark and have text-white */
+.light-mode [class*="bg-kapruka-purple"].text-white,
+.light-mode [class*="bg-kapruka-purple"][class*="text-white"],
+.light-mode [class*="bg-purple-"].text-white,
+.light-mode [class*="bg-purple-"][class*="text-white"],
+.light-mode [class*="bg-emerald"].text-white,
+.light-mode [class*="bg-emerald"][class*="text-white"],
+.light-mode [class*="bg-rose"].text-white,
+.light-mode [class*="bg-rose"][class*="text-white"] {
+  color: #ffffff !important;
+}
+
+/* Fix warning/success/error banners text readability on light backgrounds */
+.light-mode [class*="text-rose-300"],
+.light-mode [class*="text-rose-400"] {
+  color: #e11d48 !important; /* dark rose-600 */
+}
+.light-mode [class*="text-emerald-300"],
+.light-mode [class*="text-emerald-400"] {
+  color: #059669 !important; /* dark emerald-600 */
+}
+.light-mode [class*="text-amber-300"],
+.light-mode [class*="text-amber-400"] {
+  color: #b45309 !important; /* dark amber-700 / brown */
+}
+
+/* Welcome Banner styling in light mode */
+.light-mode .welcome-banner {
+  background: #ede9f8 !important; /* light purple background */
+  border-color: #c4b5e8 !important;
+}
+.light-mode .welcome-banner h4 {
+  color: #402970 !important;
+}
+.light-mode .welcome-banner p {
+  color: #2d1a5e !important;
+}
+.light-mode .welcome-banner svg {
+  color: #402970 !important;
+}
+
+/* Scrollbars in light mode */
+.light-mode ::-webkit-scrollbar-track { background: var(--scrollbar-track) !important; }
+.light-mode ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb) !important; }
 

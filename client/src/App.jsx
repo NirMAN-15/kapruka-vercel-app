@@ -773,6 +773,7 @@ export default function App() {
   // Connection and API health state
   const [apiStatus, setApiStatus] = useState({ connected: false, checking: true });
   const [rateLimitError, setRateLimitError] = useState(false);
+  const [quotaWarning, setQuotaWarning] = useState(false);
 
   // Feature 1: Dark/Light mode toggle
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -1125,13 +1126,23 @@ export default function App() {
       if (!res.ok) {
         if (res.status === 429) {
           setRateLimitError(true);
-          throw new Error('Rate limit exceeded (60 requests/min). Please try again in a moment.');
+          const errData = await res.json().catch(() => ({}));
+          if (errData.error && errData.error.toLowerCase().includes('quota')) {
+            setQuotaWarning(true);
+          }
+          throw new Error(errData.error || 'Rate limit exceeded (60 requests/min). Please try again in a moment.');
         }
         const errData = await res.json().catch(() => ({}));
+        if (errData.error && errData.error.toLowerCase().includes('quota')) {
+          setQuotaWarning(true);
+        }
         throw new Error(errData.error || `HTTP error ${res.status}`);
       }
 
       const data = await res.json();
+      if (data.quotaWarning) {
+        setQuotaWarning(true);
+      }
 
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 500 - elapsed);
@@ -1857,6 +1868,13 @@ export default function App() {
           <div className="bg-rose-500/10 border-b border-rose-500/20 px-6 py-2 flex items-center justify-between text-xs text-rose-300 z-10">
             <span>⚠️ API Rate Limit Exceeded (60 req/min). Please wait a moment before sending more messages.</span>
             <button onClick={() => setRateLimitError(false)} className="hover:text-rose-100 font-bold" title="Close" aria-label="Close rate limit warning">&times;</button>
+          </div>
+        )}
+        
+        {quotaWarning && (
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 flex items-center justify-between text-xs text-amber-300 z-10">
+            <span>⚠️ API Quota Exceeded! Using offline local assistant. Please check your Gemini/OpenAI billing details or rotate API keys.</span>
+            <button onClick={() => setQuotaWarning(false)} className="hover:text-amber-100 font-bold" title="Close" aria-label="Close quota warning">&times;</button>
           </div>
         )}
         

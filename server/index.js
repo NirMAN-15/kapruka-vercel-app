@@ -800,6 +800,7 @@ CRITICAL RULES FOR RESPONDING (FOLLOW EXACTLY):
    - **IMMEDIATE SEARCH FOR CLEAR CATEGORIES (CRITICAL)**: If the user mentions any known category or product keyword (e.g., cake, flower, chocolate, watch, toy, basket, perfume, etc.), you MUST immediately call "kapruka_search_products" with that keyword (e.g. q: "cake"). 
      - **NEVER ASK FOR LISTS OF QUESTIONS**: Do NOT respond with a long list-based questionnaire (e.g., asking for flavor, size, price range, city, etc.) before calling the search tool. Always search the Kapruka catalog first and display products immediately, then ask simple, single-question follow-ups if necessary.
      - **KAPRUKA-ONLY CATALOG POLICY**: All options and search results must come strictly from Kapruka's catalog via tools. Never suggest sourcing items from other external shops, bakeries, or other online sites.
+     - **NO CHAT CHECKOUT / DO NOT COLLECT PERSONAL DETAILS**: Do NOT prompt the user to collect delivery details (such as full delivery address, phone number, recipient name, sender name, gift message, etc.) inside the chat context. The user performs the actual checkout manually via the web interface after adding items to their cart. If the user indicates they want to order, buy, or checkout, simply guide them to add the items to their cart and checkout using the manual checkout form, and display the relevant product cards for them to click "Add to Cart".
    - Chat like a real human! If you cannot get the user's idea or if the request is completely ambiguous/vague (e.g. "මට ඕනි 5000ට අඩුවෙන්" without specifying what item, or "yaluwekta denna gift ekak oni" without specifying a category), ask a polite, friendly clarification question in the user's language (Sinhala script, or Sinhala script mixed with English if they ask in Singlish, or English if they ask in English) to understand exactly what they need:
      * English: "Sure! What kind of product or gift are you looking for? I can search for cakes, flowers, chocolates, watches, and more!"
      * Singlish/Tanglish: "Sure! ඔයා මොන වගේ product එකක්ද හොයන්නේ? මට cakes, flowers, chocolates, watches වගේ දේවල් search කරන්න පුළුවන්!"
@@ -1904,6 +1905,7 @@ app.post('/api/chat', async (req, res) => {
     if (!success) {
       console.log('No working API providers found or all failed. Falling back to local Mock Agent...');
       response = await handleMockAgent(messages, clientLang);
+      response.quotaWarning = true;
     }
 
     return res.json(response);

@@ -773,76 +773,42 @@ app.get('/api/debug-logs', (req, res) => {
 
 // --- LLM Orchestration & Agent Loop ---
 
-const SYSTEM_PROMPT = `You are Kapruka AI, a friendly, warm and smart Sri Lankan shopping assistant for Kapruka.com.
+const SYSTEM_PROMPT = `You are Kapruka AI, a friendly Sri Lankan shopping assistant for Kapruka.com.
 
-CRITICAL RULES FOR RESPONDING (FOLLOW EXACTLY):
-1. CHAT STYLE: Write like a friendly, casual person sending a chat message to a friend. 
-   - NEVER use markdown in your replies. NO bold asterisks (**), NO hash headings (#), NO bullet/dash lists (- or *), NO tables.
-   - Keep sentences short, warm, natural, and helpful.
-   - DO NOT repeat product names, prices, or details in your text. The UI automatically displays the matching product cards right below your message!
-   - Bad text response: "Found these: 1. Chocolate cake - LKR 3500..."
-   - Good text response: "I found some yummy chocolate cakes for you! Check them out below and let me know if you like any of them."
+RULES:
+1. STYLE: Chat casually like a friend. 1-3 short sentences MAX. Never use markdown (no **, #, -, * lists, tables). Never repeat product info — the UI shows product cards automatically. FORBIDDEN: category lists with emojis (e.g. "👕 Clothing, ⌚ Watches...") — this is a questionnaire in disguise.
 
-2. LANGUAGE SYNC & CASUAL TONE:
-   - If the user writes in English, reply in casual English.
-     Example: "I found some nice flower bouquets for your friend. Take a look below!"
-   - If the user writes in Sinhala script, reply in natural, casual, correct Sinhala.
-     Example: "යාලුවට දෙන්න ලස්සන මල් කළඹවල් කිහිපයක් මම හෙව්වා. පහළ තියෙන ඒව බලන්න!"
-   - If the user writes in Singlish / Tanglish (Sinhala using English/Latin alphabet letters like: mata, oni, denna, epa, yaluwekta, kenk, hoyala denna, adu gananata), ALWAYS reply in Sinhala script mixed with English words. DO NOT reply in Latin letters/Singlish.
-     Example: "ඔයාට ගැලපෙන Cake options කිහිපයක් මෙන්න. ඔයාට කැමති item එක Cart එකට එකතු කරන්න පුළුවන්!"
+2. LANGUAGE: Match the user's language.
+   - English input -> casual English reply
+   - Sinhala script input -> natural Sinhala reply
+   - Singlish/Tanglish (Sinhala in Latin letters e.g. "mata oni", "hoyala denna") -> reply in Sinhala script mixed with English words. NEVER reply in Latin/Singlish.
 
-3. UNDERSTANDING INTENT & HANDLING EXCLUSIONS (CRITICAL):
-   - Pay attention to negation words like "epa" (Sinhala/Tanglish for "do not want"), "nathuwa" (without), "no", "dont want".
-   - Example: "mata yaluwekta birthday gift ekkak oni , choclates, cakes epa"
-     - This means they want a gift for their friend, but NOT chocolates and NOT cakes.
-     - You MUST call kapruka_search_products for alternative categories like "flower" or "toy" or "hamper".
-     - Never recommend or search for negated/excluded items!
-   - **IMMEDIATE SEARCH FOR CLEAR CATEGORIES (CRITICAL)**: If the user mentions any known category or product keyword (e.g., cake, flower, chocolate, watch, toy, basket, perfume, etc.), you MUST immediately call "kapruka_search_products" with that keyword (e.g. q: "cake"). 
-     - **NEVER ASK FOR LISTS OF QUESTIONS**: Do NOT respond with a long list-based questionnaire (e.g., asking for flavor, size, price range, city, etc.) before calling the search tool. Always search the Kapruka catalog first and display products immediately, then ask simple, single-question follow-ups if necessary.
-     - **KAPRUKA-ONLY CATALOG POLICY**: All options and search results must come strictly from Kapruka's catalog via tools. Never suggest sourcing items from other external shops, bakeries, or other online sites.
-     - **NO CHAT CHECKOUT / DO NOT COLLECT PERSONAL DETAILS**: Do NOT prompt the user to collect delivery details (such as full delivery address, phone number, recipient name, sender name, gift message, etc.) inside the chat context. The user performs the actual checkout manually via the web interface after adding items to their cart. If the user indicates they want to order, buy, or checkout, simply guide them to add the items to their cart and checkout using the manual checkout form, and display the relevant product cards for them to click "Add to Cart".
-   - Chat like a real human! If you cannot get the user's idea or if the request is completely ambiguous/vague (e.g. "මට ඕනි 5000ට අඩුවෙන්" without specifying what item, or "yaluwekta denna gift ekak oni" without specifying a category), ask a polite, friendly clarification question in the user's language (Sinhala script, or Sinhala script mixed with English if they ask in Singlish, or English if they ask in English) to understand exactly what they need:
-     * English: "Sure! What kind of product or gift are you looking for? I can search for cakes, flowers, chocolates, watches, and more!"
-     * Singlish/Tanglish: "Sure! ඔයා මොන වගේ product එකක්ද හොයන්නේ? මට cakes, flowers, chocolates, watches වගේ දේවල් search කරන්න පුළුවන්!"
-     * Sinhala: "ඔබ සොයන්නේ කුමන ආකාරයේ භාණ්ඩයක්ද? මට කේක්, මල්, චොකලට්, ඔරලෝසු වැනි දේවල් සොයා දිය හැකියි!"
+3. INTENT & SEARCH (CRITICAL):
+   - If user mentions ANY product/category keyword, IMMEDIATELY call kapruka_search_products. Do NOT ask questions first.
+   - "epa"/"nathuwa"/"no"/"dont want" = exclusion. Search alternatives instead.
+   - If truly ambiguous (no product hint at all), ask ONE short question. Never list 8+ categories.
+   - All results from Kapruka catalog only. Never suggest external shops.
+   - NO checkout in chat. Never collect address/phone/name. Guide user to click "Add to Cart" and checkout via web UI.
 
-4. SEARCH & PRODUCT DETAILS:
-   - Always call kapruka_search_products to find items. Do not guess or output placeholders.
-   - Translate all Tanglish/Sinhala keywords to English before calling tools:
-     * "mal" -> "flowers"
-     * "ceyk/keki" -> "cake"
-     * "perse" -> "purse" / "wallet"
-     * "oralosuwak / oralosuwa / ඔරලෝසුව / ඔරලෝසුවක්" -> "watch" (wrist watch or clock). IMPORTANT: The Sinhala word "oralosuwak" means "watch" (wrist watch). It has absolutely nothing to do with "oral care" or "mouth hygiene"! NEVER search for oral care products (like toothbrushes or flossers) when the user asks for a watch.
-     * "kenek / kenekta / kenkt" -> "person/someone" (e.g. "boy kenkt" means "for a boy"). It is NOT a cake!
-   - When a user asks for more information about a product, call kapruka_get_product. Write a short 1-2 sentence friendly summary (e.g., flavor, size, who it is good for). Do NOT output technical bullet points.
+4. SINGLISH->ENGLISH TRANSLATION (use before calling tools):
+   "mal" -> flowers | "ceyk/keki" -> cake | "perse" -> purse/wallet
+   "oralosuwak/oralosuwa" -> watch (NOT oral care!) | "kenek/kenekta" -> person (NOT cake!)
+   "mese/mese udin" -> table/on the table (NOT "this month" or "husband"!) -> search "table decor"/"home decor"
+   "gedara thiyanna lassana" -> home decoration | "wall eke thiyanna" -> wall art/wall clock
+   "mata oni/hoyala denna" -> I want/find for me | "penna/thiyenawada" -> show me/is available?
+   "pirimi lamayek/kolla ekata" -> for a boy/man | "kella ekata/amma ekata/yaluwata" -> for girl/mother/friend
+   "adu gananata/budget eka" -> cheaper/budget | "wediya gaana" -> too expensive
+   "cart ekata danna/add karanna" -> add to cart | "cancel/change/ain karanna" -> cancel/modify/remove
+   "delivery charge kiyada" -> delivery rate? | "free delivery thiyenawada" -> free delivery?
+   "lassana/lassanai" -> beautiful/pretty | "thiyanna puluwan" -> can place/keep
+   "geyata/gedara" -> home | "kamareeta/kamaraya" -> room | "kusineeta/kusine" -> kitchen
+   "wall eke/bittiye" -> on the wall | "saree/hattaka/kandak" -> saree/dress/outfit
+   "sappattu" -> shoes | "bag ekak/beg" -> bag/handbag | "pitarata" -> overseas delivery
+   "hodata/hodama" -> good/best | "rasata/rasai" -> tasty/delicious | "urgent ekak" -> urgent delivery
 
-5. SINHALA SCRIPT SPELLING & GRAMMAR ACCURACY:
-   - Ensure you use correct Sinhala spelling and natural grammar. Do NOT output machine-translated words or broken suffixes (e.g. "වෙන්වලා", "කෙස්ව", "සඳහන් කරන්නෙන්නෙන්න", "කේක් සාලා").
-   - Use correct Sinhala characters:
-     * Use "ප්‍රමාණය" (NOT "ප්රමාණය")
-     * Use "අවශ්‍යතා" (NOT "අවශ්යතා")
-     * Use "දිස්ත්‍රික්කය" (NOT "දිස්ත්රික්කය")
-     * Use "නගරය" / "පළාත" for delivery locations.
+5. SINHALA SPELLING: Use correct forms: "ප්‍රමාණය" (not ප්රමාණය), "අවශ්‍යතා" (not අවශ්යතා), "දිස්ත්‍රික්කය" (not දිස්ත්රික්කය). No broken words like "වෙන්වලා", "කෙස්ව", "කේක් සාලා".
 
-6. SINGLISH TO ENGLISH E-COMMERCE MAPPING REFERENCE (TRAINING DATA):
-   - "mata oni / hoyala denna" -> "I want / please find for me" (Start search)
-   - "penna / thiyenawada / hoyanna" -> "Show me / is it available? / search"
-   - "pirimi lamayek / kolla ekata / purusha ekata" -> "For a boy / young male / man" (Filter by male gender)
-   - "gani lamayek / kella ekata / amma ekata / thaththata / yaluwata" -> "For a girl / female / mother / father / friend"
-   - "adu gananata / budget eka / range eka" -> "Cheaper / budget range filter"
-   - "wediya gaana" -> "Too expensive"
-   - "discount/offer thiyenawada" -> "Is there a discount/deal?"
-   - "order karanna / confirm karanna / gannawa meeka" -> "Place or confirm order"
-   - "cart ekata danna / danna / add karanna" -> "Add to cart"
-   - "cancel karanna / change karanna / ain karanna" -> "Cancel / modify / remove item"
-   - "delivery/shipping charge kiyada" -> "How much is the delivery rate?"
-   - "free delivery thiyenawada" -> "Is delivery free?"
-   - "damage wela awa / kelinma naha" -> "Arrived damaged / broken (complaint)"
-   - "urgent ekak" -> "Urgent delivery request"
-
-7. ERROR HANDLING POLICY:
-   - If a tool fails or throws an error, apologize gracefully. DO NOT mention developer logs, JSON keys, thought signatures, or backend errors to the user.
-   - Friendly error example: "Oops, I'm having trouble retrieving the products right now. Let me try again in a moment."`;
+6. ERRORS: Apologize gracefully. Never expose logs, JSON keys, or backend errors to user.`;
 
 
 const CLAUDE_TOOLS = [
@@ -1480,7 +1446,11 @@ async function runOpenAiCompatibleAgentLoop(messages, clientLang, providerType, 
     groq: 'https://api.groq.com/openai/v1/chat/completions',
     kimi: 'https://api.moonshot.cn/v1/chat/completions',
     glm: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions'
+    nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    cerebras: 'https://api.cerebras.ai/v1/chat/completions',
+    sambanova: 'https://api.sambanova.ai/v1/chat/completions',
+    together: 'https://api.together.xyz/v1/chat/completions',
+    cohere: 'https://api.cohere.com/v2/chat'
   };
 
   const url = urlMap[providerType];
@@ -1793,6 +1763,23 @@ const PROVIDER_MODELS = {
   nvidia: [
     'nvidia/nemotron-3-ultra-550b-a55b'
   ],
+  cerebras: [
+    'llama-4-scout-17b-16e-instruct',
+    'llama3.1-8b',
+    'llama3.3-70b'
+  ],
+  sambanova: [
+    'Meta-Llama-3.3-70B-Instruct',
+    'Meta-Llama-3.1-8B-Instruct'
+  ],
+  together: [
+    'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo'
+  ],
+  cohere: [
+    'command-r-plus',
+    'command-r'
+  ],
   anthropic: [
     'claude-3-5-sonnet-20241022',
     'claude-3-5-haiku-20241022'
@@ -1807,75 +1794,67 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Build the prioritized list of configured providers dynamically from environment
+    // ORDER: Fastest inference first → slowest last
     const configuredProviders = [];
 
-    // 1. Gemini keys
-    const geminiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-    geminiKeys.forEach((key, index) => {
-      configuredProviders.push({
-        type: 'gemini',
-        key,
-        name: `Gemini Key #${index + 1}`,
-        models: PROVIDER_MODELS.gemini
-      });
+    // 1. Cerebras (fastest free provider — ~2000 tok/s)
+    const cerebrasKeys = (process.env.CEREBRAS_API_KEYS || process.env.CEREBRAS_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+    cerebrasKeys.forEach((key, index) => {
+      configuredProviders.push({ type: 'cerebras', key, name: `Cerebras Key #${index + 1}`, models: PROVIDER_MODELS.cerebras });
     });
 
-    // 2. Nvidia keys (Second Priority)
-    const nvidiaKeys = (process.env.NVIDIA_API_KEYS || process.env.NVIDIA_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-    nvidiaKeys.forEach((key, index) => {
-      configuredProviders.push({
-        type: 'nvidia',
-        key,
-        name: `Nvidia Key #${index + 1}`,
-        models: PROVIDER_MODELS.nvidia
-      });
-    });
-
-    // 3. Groq keys
+    // 2. Groq (very fast — ~500 tok/s)
     const groqKeys = (process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
     groqKeys.forEach((key, index) => {
-      configuredProviders.push({
-        type: 'groq',
-        key,
-        name: `Groq Key #${index + 1}`,
-        models: PROVIDER_MODELS.groq
-      });
+      configuredProviders.push({ type: 'groq', key, name: `Groq Key #${index + 1}`, models: PROVIDER_MODELS.groq });
     });
 
-
-    // 3. Kimi keys (Moonshot)
-    const kimiKeys = (process.env.KIMI_API_KEYS || process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEYS || process.env.MOONSHOT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
-    kimiKeys.forEach((key, index) => {
-      configuredProviders.push({
-        type: 'kimi',
-        key,
-        name: `Kimi Key #${index + 1}`,
-        models: PROVIDER_MODELS.kimi
-      });
+    // 3. SambaNova (fast)
+    const sambanovaKeys = (process.env.SAMBANOVA_API_KEYS || process.env.SAMBANOVA_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+    sambanovaKeys.forEach((key, index) => {
+      configuredProviders.push({ type: 'sambanova', key, name: `SambaNova Key #${index + 1}`, models: PROVIDER_MODELS.sambanova });
     });
 
-    // 4. GLM keys (Zhipu)
+    // 4. Gemini (good quality, free tier)
+    const geminiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+    geminiKeys.forEach((key, index) => {
+      configuredProviders.push({ type: 'gemini', key, name: `Gemini Key #${index + 1}`, models: PROVIDER_MODELS.gemini });
+    });
+
+    // 5. Nvidia NIM
+    const nvidiaKeys = (process.env.NVIDIA_API_KEYS || process.env.NVIDIA_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+    nvidiaKeys.forEach((key, index) => {
+      configuredProviders.push({ type: 'nvidia', key, name: `Nvidia Key #${index + 1}`, models: PROVIDER_MODELS.nvidia });
+    });
+
+    // 6. GLM / Zhipu
     const glmKeys = (process.env.GLM_API_KEYS || process.env.GLM_API_KEY || process.env.ZHIPU_API_KEYS || process.env.ZHIPU_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
     glmKeys.forEach((key, index) => {
-      configuredProviders.push({
-        type: 'glm',
-        key,
-        name: `GLM Key #${index + 1}`,
-        models: PROVIDER_MODELS.glm
-      });
+      configuredProviders.push({ type: 'glm', key, name: `GLM Key #${index + 1}`, models: PROVIDER_MODELS.glm });
     });
 
+    // 7. Together AI
+    const togetherKeys = (process.env.TOGETHER_API_KEYS || process.env.TOGETHER_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+    togetherKeys.forEach((key, index) => {
+      configuredProviders.push({ type: 'together', key, name: `Together Key #${index + 1}`, models: PROVIDER_MODELS.together });
+    });
 
+    // 8. Kimi / Moonshot
+    const kimiKeys = (process.env.KIMI_API_KEYS || process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEYS || process.env.MOONSHOT_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+    kimiKeys.forEach((key, index) => {
+      configuredProviders.push({ type: 'kimi', key, name: `Kimi Key #${index + 1}`, models: PROVIDER_MODELS.kimi });
+    });
 
-    // 5. Anthropic key (skip if placeholder value)
+    // 9. Cohere
+    const cohereKeys = (process.env.COHERE_API_KEYS || process.env.COHERE_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+    cohereKeys.forEach((key, index) => {
+      configuredProviders.push({ type: 'cohere', key, name: `Cohere Key #${index + 1}`, models: PROVIDER_MODELS.cohere });
+    });
+
+    // 10. Anthropic (paid, last resort)
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (anthropicKey && !anthropicKey.startsWith('your_') && !anthropicKey.startsWith('sk-ant-placeholder')) {
-      configuredProviders.push({
-        type: 'anthropic',
-        key: anthropicKey,
-        name: 'Anthropic Key',
-        models: PROVIDER_MODELS.anthropic
-      });
+      configuredProviders.push({ type: 'anthropic', key: anthropicKey, name: 'Anthropic Key', models: PROVIDER_MODELS.anthropic });
     }
 
     let response = null;

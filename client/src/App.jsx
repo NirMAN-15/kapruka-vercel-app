@@ -614,6 +614,9 @@ function ProductSkeleton() {
 // Helper to retrieve high-quality matched fallback images for common gift items
 const getFallbackImage = (title) => {
   const t = (title || '').toLowerCase();
+  if (t.includes('wall') || t.includes('shelf') || t.includes('art') || t.includes('hanging') || t.includes('frame') || t.includes('print') || t.includes('decor') || t.includes('wood')) {
+    return 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=400&auto=format&fit=crop&q=80';
+  }
   if (t.includes('cake') || t.includes('gateau') || t.includes('velvet') || t.includes('gateaux')) {
     return 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&auto=format&fit=crop&q=80';
   }
